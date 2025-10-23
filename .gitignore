@@ -91,6 +91,7 @@ Desktop.ini
 # dotenv files (may contain secrets)
 .env
 .env.*
+!.env.example
 
 # local settings
 local_settings.py
