@@ -3,24 +3,24 @@ Generador de datos para gráficos
 """
 import pandas as pd
 from typing import List, Dict, Any, Tuple, Optional
-from src.core.domain.entities import ChartData
-from src.core.domain.exceptions import ChartGenerationError
+from src.core.domain.entities import DatosGrafico
+from src.core.domain.exceptions import ErrorGeneracionGrafico
 
-class ChartDataGenerator:
+class GeneradorDatosGrafico:
     """Servicio para generar datos de gráficos"""
     
-    def __init__(self, storage=None):
-        self.storage = storage
+    def __init__(self, almacenamiento=None):
+        self.almacenamiento = almacenamiento
     
-    async def generate_from_dataframe(
+    async def generar_desde_dataframe(
         self,
         dataframe: pd.DataFrame,
-        chart_type: str,
-        x_axis: str,
-        y_axis: str,
-        title: str = None,
-        aggregation: str = "sum"
-    ) -> ChartData:
+        tipo_grafico: str,
+        eje_x: str,
+        eje_y: str,
+        titulo: str = None,
+        agregacion: str = "suma"
+    ) -> DatosGrafico:
         """
         Genera datos de gráfico desde un DataFrame.
         
@@ -29,239 +29,239 @@ class ChartDataGenerator:
         """
         try:
             # Validar columnas
-            if x_axis not in dataframe.columns:
-                raise ChartGenerationError(f"Columna {x_axis} no encontrada en los datos")
+            if eje_x not in dataframe.columns:
+                raise ErrorGeneracionGrafico(f"Columna {eje_x} no encontrada en los datos")
             
-            if y_axis not in dataframe.columns and y_axis != "count":
-                raise ChartGenerationError(f"Columna {y_axis} no encontrada en los datos")
+            if eje_y not in dataframe.columns and eje_y != "conteo":
+                raise ErrorGeneracionGrafico(f"Columna {eje_y} no encontrada en los datos")
             
             # Procesar datos según tipo de gráfico y agregación
-            processed_data = self._process_data_by_chart_type(
+            datos_procesados = self._procesar_datos_por_tipo_grafico(
                 dataframe, 
-                chart_type, 
-                x_axis, 
-                y_axis,
-                aggregation
+                tipo_grafico, 
+                eje_x, 
+                eje_y,
+                agregacion
             )
             
             # Generar configuración del gráfico
-            config = self._generate_chart_config(chart_type, x_axis, y_axis, title)
+            configuracion = self._generar_configuracion_grafico(tipo_grafico, eje_x, eje_y, titulo)
             
             # Metadata
-            metadata = {
-                "total_records": len(dataframe),
-                "processed_records": len(processed_data),
-                "x_axis": x_axis,
-                "y_axis": y_axis,
-                "chart_type": chart_type,
-                "aggregation": aggregation
+            metadatos = {
+                "total_registros": len(dataframe),
+                "registros_procesados": len(datos_procesados),
+                "eje_x": eje_x,
+                "eje_y": eje_y,
+                "tipo_grafico": tipo_grafico,
+                "agregacion": agregacion
             }
             
-            return ChartData.create(
-                chart_type=chart_type,
-                data=processed_data,
-                config=config,
-                metadata=metadata
+            return DatosGrafico.crear(
+                tipo_grafico=tipo_grafico,
+                datos=datos_procesados,
+                configuracion=configuracion,
+                metadatos=metadatos
             )
             
         except Exception as e:
-            raise ChartGenerationError(f"Error generando gráfico: {str(e)}")
+            raise ErrorGeneracionGrafico(f"Error generando gráfico: {str(e)}")
     
-    async def generate_chart_data(
+    async def generar_datos_grafico(
         self, 
-        data: List[Dict[str, Any]], 
-        chart_type: str,
-        x_column: str,
-        y_column: str,
-        title: str = None
-    ) -> ChartData:
+        datos: List[Dict[str, Any]], 
+        tipo_grafico: str,
+        columna_x: str,
+        columna_y: str,
+        titulo: str = None
+    ) -> DatosGrafico:
         """
         Genera datos procesados para gráfico desde lista de diccionarios
         """
         try:
-            df = pd.DataFrame(data)
+            df = pd.DataFrame(datos)
             
             # Validar columnas
-            if x_column not in df.columns or y_column not in df.columns:
-                raise ChartGenerationError(f"Columnas {x_column} o {y_column} no encontradas")
+            if columna_x not in df.columns or columna_y not in df.columns:
+                raise ErrorGeneracionGrafico(f"Columnas {columna_x} o {columna_y} no encontradas")
             
             # Procesar datos según tipo de gráfico
-            processed_data = self._process_data_by_chart_type(
+            datos_procesados = self._procesar_datos_por_tipo_grafico(
                 df, 
-                chart_type, 
-                x_column, 
-                y_column,
-                "sum"
+                tipo_grafico, 
+                columna_x, 
+                columna_y,
+                "suma"
             )
             
             # Generar configuración del gráfico
-            config = self._generate_chart_config(chart_type, x_column, y_column, title)
+            configuracion = self._generar_configuracion_grafico(tipo_grafico, columna_x, columna_y, titulo)
             
             # Metadata
-            metadata = {
-                "total_records": len(df),
-                "x_column": x_column,
-                "y_column": y_column,
-                "chart_type": chart_type
+            metadatos = {
+                "total_registros": len(df),
+                "columna_x": columna_x,
+                "columna_y": columna_y,
+                "tipo_grafico": tipo_grafico
             }
             
-            return ChartData.create(
-                chart_type=chart_type,
-                data=processed_data,
-                config=config,
-                metadata=metadata
+            return DatosGrafico.crear(
+                tipo_grafico=tipo_grafico,
+                datos=datos_procesados,
+                configuracion=configuracion,
+                metadatos=metadatos
             )
             
         except Exception as e:
-            raise ChartGenerationError(f"Error generando gráfico: {str(e)}")
+            raise ErrorGeneracionGrafico(f"Error generando gráfico: {str(e)}")
     
-    def _process_data_by_chart_type(
+    def _procesar_datos_por_tipo_grafico(
         self, 
         df: pd.DataFrame, 
-        chart_type: str, 
-        x_column: str, 
-        y_column: str,
-        aggregation: str = "sum"
+        tipo_grafico: str, 
+        columna_x: str, 
+        columna_y: str,
+        agregacion: str = "suma"
     ) -> List[Dict[str, Any]]:
         """Procesa datos según el tipo de gráfico"""
         
-        if chart_type == "bar":
-            return self._process_bar_chart(df, x_column, y_column, aggregation)
-        elif chart_type == "line":
-            return self._process_line_chart(df, x_column, y_column, aggregation)
-        elif chart_type == "pie":
-            return self._process_pie_chart(df, x_column, y_column, aggregation)
-        elif chart_type == "scatter":
-            return self._process_scatter_chart(df, x_column, y_column)
-        elif chart_type == "area":
-            return self._process_area_chart(df, x_column, y_column, aggregation)
+        if tipo_grafico == "barras":
+            return self._procesar_grafico_barras(df, columna_x, columna_y, agregacion)
+        elif tipo_grafico == "lineas":
+            return self._procesar_grafico_lineas(df, columna_x, columna_y, agregacion)
+        elif tipo_grafico == "pastel":
+            return self._procesar_grafico_pastel(df, columna_x, columna_y, agregacion)
+        elif tipo_grafico == "dispersion":
+            return self._procesar_grafico_dispersion(df, columna_x, columna_y)
+        elif tipo_grafico == "area":
+            return self._procesar_grafico_area(df, columna_x, columna_y, agregacion)
         else:
-            raise ChartGenerationError(f"Tipo de gráfico no soportado: {chart_type}")
+            raise ErrorGeneracionGrafico(f"Tipo de gráfico no soportado: {tipo_grafico}")
     
-    def _aggregate_data(self, df: pd.DataFrame, x_column: str, y_column: str, aggregation: str) -> pd.DataFrame:
+    def _agregar_datos(self, df: pd.DataFrame, columna_x: str, columna_y: str, agregacion: str) -> pd.DataFrame:
         """Agrega datos según el tipo de agregación especificado"""
-        if y_column == "count":
-            return df.groupby(x_column).size().reset_index(name='count')
+        if columna_y == "conteo":
+            return df.groupby(columna_x).size().reset_index(name='conteo')
         
-        if aggregation == "sum":
-            return df.groupby(x_column)[y_column].sum().reset_index()
-        elif aggregation == "avg" or aggregation == "mean":
-            return df.groupby(x_column)[y_column].mean().reset_index()
-        elif aggregation == "count":
-            return df.groupby(x_column)[y_column].count().reset_index()
-        elif aggregation == "min":
-            return df.groupby(x_column)[y_column].min().reset_index()
-        elif aggregation == "max":
-            return df.groupby(x_column)[y_column].max().reset_index()
+        if agregacion == "suma":
+            return df.groupby(columna_x)[columna_y].sum().reset_index()
+        elif agregacion == "promedio" or agregacion == "media":
+            return df.groupby(columna_x)[columna_y].mean().reset_index()
+        elif agregacion == "conteo":
+            return df.groupby(columna_x)[columna_y].count().reset_index()
+        elif agregacion == "minimo":
+            return df.groupby(columna_x)[columna_y].min().reset_index()
+        elif agregacion == "maximo":
+            return df.groupby(columna_x)[columna_y].max().reset_index()
         else:
-            return df.groupby(x_column)[y_column].sum().reset_index()
+            return df.groupby(columna_x)[columna_y].sum().reset_index()
     
-    def _process_bar_chart(
+    def _procesar_grafico_barras(
         self, 
         df: pd.DataFrame, 
-        x_column: str, 
-        y_column: str,
-        aggregation: str
+        columna_x: str, 
+        columna_y: str,
+        agregacion: str
     ) -> List[Dict[str, Any]]:
         """Procesa datos para gráfico de barras con agregación"""
-        grouped = self._aggregate_data(df, x_column, y_column, aggregation)
+        agrupado = self._agregar_datos(df, columna_x, columna_y, agregacion)
         # Limitar a top 20 para evitar sobrecarga visual
-        if len(grouped) > 20:
-            grouped = grouped.nlargest(20, grouped.columns[-1])
-        return grouped.to_dict('records')
+        if len(agrupado) > 20:
+            agrupado = agrupado.nlargest(20, agrupado.columns[-1])
+        return agrupado.to_dict('records')
     
-    def _process_line_chart(
+    def _procesar_grafico_lineas(
         self, 
         df: pd.DataFrame, 
-        x_column: str, 
-        y_column: str,
-        aggregation: str
+        columna_x: str, 
+        columna_y: str,
+        agregacion: str
     ) -> List[Dict[str, Any]]:
         """Procesa datos para gráfico de líneas"""
-        grouped = self._aggregate_data(df, x_column, y_column, aggregation)
-        sorted_df = grouped.sort_values(x_column)
-        return sorted_df.to_dict('records')
+        agrupado = self._agregar_datos(df, columna_x, columna_y, agregacion)
+        df_ordenado = agrupado.sort_values(columna_x)
+        return df_ordenado.to_dict('records')
     
-    def _process_pie_chart(
+    def _procesar_grafico_pastel(
         self, 
         df: pd.DataFrame, 
-        x_column: str, 
-        y_column: str,
-        aggregation: str
+        columna_x: str, 
+        columna_y: str,
+        agregacion: str
     ) -> List[Dict[str, Any]]:
         """Procesa datos para gráfico circular"""
-        grouped = self._aggregate_data(df, x_column, y_column, aggregation)
+        agrupado = self._agregar_datos(df, columna_x, columna_y, agregacion)
         
         # Limitar a top 10 para gráficos circulares
-        if len(grouped) > 10:
-            grouped = grouped.nlargest(10, grouped.columns[-1])
+        if len(agrupado) > 10:
+            agrupado = agrupado.nlargest(10, agrupado.columns[-1])
         
-        total = grouped[grouped.columns[-1]].sum()
-        grouped['percentage'] = (grouped[grouped.columns[-1]] / total * 100).round(2)
-        return grouped.to_dict('records')
+        total = agrupado[agrupado.columns[-1]].sum()
+        agrupado['porcentaje'] = (agrupado[agrupado.columns[-1]] / total * 100).round(2)
+        return agrupado.to_dict('records')
     
-    def _process_scatter_chart(
+    def _procesar_grafico_dispersion(
         self, 
         df: pd.DataFrame, 
-        x_column: str, 
-        y_column: str
+        columna_x: str, 
+        columna_y: str
     ) -> List[Dict[str, Any]]:
         """Procesa datos para gráfico de dispersión"""
         # Para scatter no agregamos, mostramos puntos individuales
         # Pero limitamos a 1000 puntos para performance
-        scatter_df = df[[x_column, y_column]].dropna()
-        if len(scatter_df) > 1000:
-            scatter_df = scatter_df.sample(n=1000, random_state=42)
-        return scatter_df.to_dict('records')
+        df_dispersion = df[[columna_x, columna_y]].dropna()
+        if len(df_dispersion) > 1000:
+            df_dispersion = df_dispersion.sample(n=1000, random_state=42)
+        return df_dispersion.to_dict('records')
     
-    def _process_area_chart(
+    def _procesar_grafico_area(
         self, 
         df: pd.DataFrame, 
-        x_column: str, 
-        y_column: str,
-        aggregation: str
+        columna_x: str, 
+        columna_y: str,
+        agregacion: str
     ) -> List[Dict[str, Any]]:
         """Procesa datos para gráfico de área"""
-        grouped = self._aggregate_data(df, x_column, y_column, aggregation)
-        sorted_df = grouped.sort_values(x_column)
-        return sorted_df.to_dict('records')
+        agrupado = self._agregar_datos(df, columna_x, columna_y, agregacion)
+        df_ordenado = agrupado.sort_values(columna_x)
+        return df_ordenado.to_dict('records')
     
-    def _generate_chart_config(
+    def _generar_configuracion_grafico(
         self, 
-        chart_type: str, 
-        x_column: str, 
-        y_column: str, 
-        title: str = None
+        tipo_grafico: str, 
+        columna_x: str, 
+        columna_y: str, 
+        titulo: str = None
     ) -> Dict[str, Any]:
         """Genera configuración del gráfico"""
-        config = {
-            "type": chart_type,
-            "title": title or f"{y_column} por {x_column}",
-            "xAxis": {
-                "label": x_column,
-                "type": "category" if chart_type in ["bar", "pie"] else "linear"
+        configuracion = {
+            "tipo": tipo_grafico,
+            "titulo": titulo or f"{columna_y} por {columna_x}",
+            "ejeX": {
+                "etiqueta": columna_x,
+                "tipo": "categoria" if tipo_grafico in ["barras", "pastel"] else "lineal"
             },
-            "yAxis": {
-                "label": y_column,
-                "type": "linear"
+            "ejeY": {
+                "etiqueta": columna_y,
+                "tipo": "lineal"
             },
-            "responsive": True,
-            "maintainAspectRatio": False,
-            "animation": True
+            "responsivo": True,
+            "mantenerRelacionAspecto": False,
+            "animacion": True
         }
         
         # Configuraciones específicas por tipo
-        if chart_type == "pie":
-            config["legend"] = {"position": "right"}
-            config["showLabels"] = True
-        elif chart_type == "line" or chart_type == "area":
-            config["smooth"] = True
-            config["fill"] = chart_type == "area"
-        elif chart_type == "scatter":
-            config["showLine"] = False
-            config["pointRadius"] = 4
-        elif chart_type == "bar":
-            config["horizontal"] = False
-            config["stacked"] = False
+        if tipo_grafico == "pastel":
+            configuracion["leyenda"] = {"posicion": "derecha"}
+            configuracion["mostrarEtiquetas"] = True
+        elif tipo_grafico == "lineas" or tipo_grafico == "area":
+            configuracion["suave"] = True
+            configuracion["relleno"] = tipo_grafico == "area"
+        elif tipo_grafico == "dispersion":
+            configuracion["mostrarLinea"] = False
+            configuracion["radioP unto"] = 4
+        elif tipo_grafico == "barras":
+            configuracion["horizontal"] = False
+            configuracion["apilado"] = False
         
-        return config
+        return configuracion

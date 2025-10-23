@@ -2,30 +2,30 @@
 Caso de uso para datos de gráficos
 """
 from typing import List, Dict, Any, Optional
-from src.core.domain.entities import ChartData
-from src.core.services.chart_data_generator import ChartDataGenerator
-from src.infrastructure.persistence.in_memory_storage import InMemoryStorage
+from src.core.domain.entities import DatosGrafico
+from src.core.services.chart_data_generator import GeneradorDatosGrafico
+from src.infrastructure.persistence.in_memory_storage import AlmacenamientoMemoria
 
-class ChartDataUseCase:
+class CasoUsoDatosGrafico:
     """Caso de uso para generar datos de gráficos"""
     
     def __init__(
         self, 
-        chart_generator: ChartDataGenerator,
-        storage: Optional[InMemoryStorage] = None
+        generador_graficos: GeneradorDatosGrafico,
+        almacenamiento: Optional[AlmacenamientoMemoria] = None
     ):
-        self.chart_generator = chart_generator
-        self.storage = storage or InMemoryStorage()
+        self.generador_graficos = generador_graficos
+        self.almacenamiento = almacenamiento or AlmacenamientoMemoria()
     
-    async def generate_chart_data_from_file(
+    async def generar_datos_grafico_desde_archivo(
         self,
-        file_id: str,
-        chart_type: str,
-        x_axis: str,
-        y_axis: str,
-        title: str = None,
-        aggregation: str = "sum"
-    ) -> ChartData:
+        id_archivo: str,
+        tipo_grafico: str,
+        eje_x: str,
+        eje_y: str,
+        titulo: str = None,
+        agregacion: str = "suma"
+    ) -> DatosGrafico:
         """
         Genera datos de gráfico desde un archivo almacenado.
         
@@ -34,43 +34,43 @@ class ChartDataUseCase:
         Evita enviar todo el conjunto de datos crudos al cliente.
         """
         # Recuperar DataFrame del storage
-        df = self.storage.get_dataframe(file_id)
+        df = self.almacenamiento.obtener_dataframe(id_archivo)
         
         if df is None:
-            raise ValueError(f"Archivo con ID {file_id} no encontrado")
+            raise ValueError(f"Archivo con ID {id_archivo} no encontrado")
         
         # Generar datos del gráfico
-        chart_data = await self.chart_generator.generate_from_dataframe(
+        datos_grafico = await self.generador_graficos.generar_desde_dataframe(
             dataframe=df,
-            chart_type=chart_type,
-            x_axis=x_axis,
-            y_axis=y_axis,
-            title=title,
-            aggregation=aggregation
+            tipo_grafico=tipo_grafico,
+            eje_x=eje_x,
+            eje_y=eje_y,
+            titulo=titulo,
+            agregacion=agregacion
         )
         
         # Guardar en storage
-        self.storage.save_chart(chart_data.chart_id, chart_data)
+        self.almacenamiento.guardar_grafico(datos_grafico.id_grafico, datos_grafico)
         
-        return chart_data
+        return datos_grafico
     
-    async def generate_chart_data(
+    async def generar_datos_grafico(
         self,
-        data: List[Dict[str, Any]],
-        chart_type: str,
-        x_column: str,
-        y_column: str,
-        title: str = None
-    ) -> ChartData:
+        datos: List[Dict[str, Any]],
+        tipo_grafico: str,
+        columna_x: str,
+        columna_y: str,
+        titulo: str = None
+    ) -> DatosGrafico:
         """Genera datos para gráfico desde datos raw"""
-        return await self.chart_generator.generate_chart_data(
-            data=data,
-            chart_type=chart_type,
-            x_column=x_column,
-            y_column=y_column,
-            title=title
+        return await self.generador_graficos.generar_datos_grafico(
+            datos=datos,
+            tipo_grafico=tipo_grafico,
+            columna_x=columna_x,
+            columna_y=columna_y,
+            titulo=titulo
         )
     
-    async def get_chart_data(self, chart_id: str) -> Optional[ChartData]:
+    async def obtener_datos_grafico(self, id_grafico: str) -> Optional[DatosGrafico]:
         """Obtiene datos de gráfico por ID"""
-        return self.storage.get_chart(chart_id)
+        return self.almacenamiento.obtener_grafico(id_grafico)

@@ -4,9 +4,9 @@ FastAPI Application Factory
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.presentation.api.routes import analysis, charts
-from src.presentation.api.middleware.cors import setup_cors
+from src.presentation.api.middleware.cors import configurar_cors
 
-def create_app() -> FastAPI:
+def crear_app() -> FastAPI:
     """
     Crea y configura la aplicación FastAPI
     """
@@ -17,21 +17,21 @@ def create_app() -> FastAPI:
     )
     
     # Configurar CORS
-    setup_cors(app)
+    configurar_cors(app)
     
-    # Incluir rutas
-    app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
-    app.include_router(charts.router, prefix="/api/charts", tags=["charts"])
+    # Incluir rutas SIN prefijo (legacy/compatibilidad)
+    app.include_router(analysis.router, tags=["subida"])
+    app.include_router(charts.router, tags=["graficos"])
     
-    # Incluir también las rutas de analysis sin prefijo para compatibilidad
-    app.include_router(analysis.router, tags=["upload"])
+    # Nota: no incluimos aquí el router con prefijo /api/analisis porque el usuario
+    # pidió mantener solo los endpoints originales y evitar rutas adicionales.
     
     @app.get("/")
-    async def root():
-        return {"message": "Dashboard IA Backend API", "status": "running"}
+    async def raiz():
+        return {"mensaje": "Dashboard IA Backend API", "estado": "ejecutando"}
     
-    @app.get("/health")
-    async def health_check():
-        return {"status": "healthy"}
+    @app.get("/salud")
+    async def verificar_salud():
+        return {"estado": "saludable"}
     
     return app

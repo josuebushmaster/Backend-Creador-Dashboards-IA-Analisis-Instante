@@ -106,6 +106,14 @@ logs/
 # Generated data / outputs
 /data/
 
+# Cache de datos (DataFrames y archivos procesados)
+cache_datos/
+
 # Ignore test artifacts
 test_output/
+ 
+# Debug artifacts and fixtures
+debug/
+debug_*.json
+chart_data_response.json
 

@@ -2,29 +2,29 @@
 Sugerencia: Container de Dependencias
 """
 from typing import Protocol
-from src.core.use_cases.file_analysis import FileAnalysisUseCase
-from src.infrastructure.external.groq_client import GroqClient
-from src.infrastructure.persistence.in_memory_storage import InMemoryStorage
+from src.core.use_cases.file_analysis import CasoUsoAnalisisArchivo
+from src.infrastructure.external.groq_client import ClienteGroq
+from src.infrastructure.persistence.in_memory_storage import AlmacenamientoMemoria
 
-class Container:
+class Contenedor:
     """Container de dependencias siguiendo principios SOLID"""
     
     def __init__(self):
-        # Infrastructure
-        self._storage = InMemoryStorage()
-        self._ai_client = GroqClient()
+        # Infraestructura
+        self._almacenamiento = AlmacenamientoMemoria()
+        self._cliente_ia = ClienteGroq()
         
-        # Use Cases
-        self._file_analysis_use_case = None
+        # Casos de uso
+        self._caso_uso_analisis_archivo = None
     
     @property
-    def file_analysis_use_case(self) -> FileAnalysisUseCase:
-        if self._file_analysis_use_case is None:
-            self._file_analysis_use_case = FileAnalysisUseCase(
-                ai_client=self._ai_client,
-                storage=self._storage
+    def caso_uso_analisis_archivo(self) -> CasoUsoAnalisisArchivo:
+        if self._caso_uso_analisis_archivo is None:
+            self._caso_uso_analisis_archivo = CasoUsoAnalisisArchivo(
+                cliente_ia=self._cliente_ia,
+                almacenamiento=self._almacenamiento
             )
-        return self._file_analysis_use_case
+        return self._caso_uso_analisis_archivo
 
 # Singleton global
-container = Container()
+contenedor = Contenedor()

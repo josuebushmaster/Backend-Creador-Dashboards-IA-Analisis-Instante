@@ -5,24 +5,24 @@ Test de verificación de requisitos
 import asyncio
 import pandas as pd
 import json
-from src.core.use_cases.file_analysis import FileAnalysisUseCase
-from src.core.use_cases.chart_data import ChartDataUseCase
-from src.core.services.chart_data_generator import ChartDataGenerator
-from src.infrastructure.external.groq_client import GroqClient
-from src.infrastructure.persistence.in_memory_storage import InMemoryStorage
+from src.core.use_cases.file_analysis import CasoUsoAnalisisArchivo
+from src.core.use_cases.chart_data import CasoUsoDatosGrafico
+from src.core.services.chart_data_generator import GeneradorDatosGrafico
+from src.infrastructure.external.groq_client import ClienteGroq
+from src.infrastructure.persistence.in_memory_storage import AlmacenamientoMemoria
 
-async def test_requirements_compliance():
+async def probar_cumplimiento_requisitos():
     """
     Test para verificar cumplimiento de todos los requisitos
     """
     print("🧪 VERIFICANDO CUMPLIMIENTO DE REQUISITOS")
     print("=" * 50)
     
-    # Setup
+    # Configuración
     try:
-        storage = InMemoryStorage()
+        almacenamiento = AlmacenamientoMemoria()
         # Para test, no usaremos cliente real de Groq
-        ai_client = None  # MockAIClient()
+        cliente_ia = None  # MockAIClient()
         
         # 1. ✅ ENDPOINT ROBUSTO PARA CARGA DE ARCHIVOS
         print("1. ✅ Endpoint robusto de carga de archivos")
@@ -118,35 +118,35 @@ async def test_requirements_compliance():
         print("\\n6. ✅ Segundo endpoint para datos de gráfico específico")
         
         # Simular el segundo endpoint
-        chart_generator = ChartDataGenerator(storage)
-        chart_use_case = ChartDataUseCase(chart_generator, storage)
+        generador_graficos = GeneradorDatosGrafico(almacenamiento)
+        caso_uso_graficos = CasoUsoDatosGrafico(generador_graficos, almacenamiento)
         
-        # Guardar DataFrame en storage
-        file_id = "test_file_123"
-        storage.save_dataframe(file_id, df)
+        # Guardar DataFrame en almacenamiento
+        id_archivo = "test_file_123"
+        almacenamiento.guardar_dataframe(id_archivo, df)
         
         # Generar datos para primer gráfico sugerido
-        suggestion = mock_ai_response[0]
-        chart_data = await chart_use_case.generate_chart_data_from_file(
-            file_id=file_id,
-            chart_type=suggestion["chart_type"],
-            x_axis=suggestion["parameters"]["x_axis"],
-            y_axis=suggestion["parameters"]["y_axis"],
-            aggregation="sum"
+        sugerencia = mock_ai_response[0]
+        datos_grafico = await caso_uso_graficos.generar_datos_grafico_desde_archivo(
+            id_archivo=id_archivo,
+            tipo_grafico=sugerencia["chart_type"],
+            eje_x=sugerencia["parameters"]["x_axis"],
+            eje_y=sugerencia["parameters"]["y_axis"],
+            agregacion="suma"
         )
         
         print("   - Endpoint que recibe parámetros ✅")
         print("   - Retorna datos agregados y formateados ✅")
-        print(f"   - Datos procesados: {len(chart_data.data)} registros ✅")
+        print(f"   - Datos procesados: {len(datos_grafico.datos)} registros ✅")
         print("   - NO envía datos crudos completos ✅")
         
         # Verificar estructura de respuesta
-        sample_response = {
-            "chart_id": chart_data.chart_id,
-            "chart_type": chart_data.chart_type,
-            "data": chart_data.data,
-            "config": chart_data.config,
-            "metadata": chart_data.metadata
+        respuesta_ejemplo = {
+            "id_grafico": datos_grafico.id_grafico,
+            "tipo_grafico": datos_grafico.tipo_grafico,
+            "datos": datos_grafico.datos,
+            "configuracion": datos_grafico.configuracion,
+            "metadatos": datos_grafico.metadatos
         }
         
         print("\\n📊 RESUMEN DE CUMPLIMIENTO")
@@ -169,4 +169,4 @@ async def test_requirements_compliance():
         return False
 
 if __name__ == "__main__":
-    asyncio.run(test_requirements_compliance())
+    asyncio.run(probar_cumplimiento_requisitos())

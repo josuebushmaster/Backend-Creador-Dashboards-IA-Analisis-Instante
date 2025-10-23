@@ -4,72 +4,72 @@ Servicio de análisis con IA
 from typing import List, Dict, Any
 import pandas as pd
 import json
-from src.core.domain.entities import AnalysisResult
-from src.core.domain.exceptions import AnalysisError, AIServiceError
+from src.core.domain.entities import ResultadoAnalisis
+from src.core.domain.exceptions import ErrorAnalisis, ErrorServicioIA
 from src.infrastructure.external.interfaces import AIClientInterface
 
-class AIAnalysisService:
+class ServicioAnalisisIA:
     """Servicio para análisis de datos usando IA"""
     
-    def __init__(self, ai_client: AIClientInterface):
-        self.ai_client = ai_client
+    def __init__(self, cliente_ia: AIClientInterface):
+        self.cliente_ia = cliente_ia
     
-    async def analyze_data(self, data: pd.DataFrame, analysis_type: str = "general") -> AnalysisResult:
+    async def analizar_datos(self, data: pd.DataFrame, tipo_analisis: str = "general") -> ResultadoAnalisis:
         """
         Analiza datos usando IA y retorna insights
         """
         try:
             # Preparar contexto de los datos
-            data_context = self._prepare_data_context(data)
+            contexto_datos = self._preparar_contexto_datos(data)
             
             # Generar prompt según tipo de análisis
-            prompt = self._generate_analysis_prompt(data_context, analysis_type)
+            prompt = self._generar_prompt_analisis(contexto_datos, tipo_analisis)
             
             # Obtener análisis de IA
-            ai_response = await self.ai_client.generate_analysis(prompt)
+            respuesta_ia = await self.cliente_ia.generar_analisis(prompt)
             
             # Procesar respuesta
-            analysis_data = self._process_ai_response(ai_response)
+            datos_analisis = self._procesar_respuesta_ia(respuesta_ia)
             
             # Generar sugerencias de gráficos
-            chart_suggestions = await self._generate_chart_suggestions(data, analysis_data)
+            sugerencias_graficos = await self._generar_sugerencias_graficos(data, datos_analisis)
             
-            return AnalysisResult.create(
-                file_id="",  # Se asignará en el use case
-                summary=analysis_data["summary"],
-                insights=analysis_data["insights"],
-                chart_suggestions=chart_suggestions
+            return ResultadoAnalisis.crear(
+                id_archivo="",  # Se asignará en el use case
+                resumen=datos_analisis["resumen"],
+                insights=datos_analisis["insights"],
+                sugerencias_graficos=sugerencias_graficos
             )
             
         except Exception as e:
-            raise AnalysisError(f"Error en análisis IA: {str(e)}")
+            raise ErrorAnalisis(f"Error en análisis IA: {str(e)}")
     
-    def _prepare_data_context(self, data: pd.DataFrame) -> Dict[str, Any]:
+    def _preparar_contexto_datos(self, data: pd.DataFrame) -> Dict[str, Any]:
         """Prepara contexto de los datos para IA"""
         return {
-            "shape": data.shape,
-            "columns": list(data.columns),
-            "dtypes": data.dtypes.to_dict(),
-            "sample": data.head().to_dict(),
-            "stats": data.describe().to_dict() if len(data.select_dtypes(include='number').columns) > 0 else {},
-            "null_counts": data.isnull().sum().to_dict()
+            "forma": data.shape,
+            "columnas": list(data.columns),
+            "tipos_datos": data.dtypes.to_dict(),
+            "muestra": data.head().to_dict(),
+            "estadisticas": data.describe().to_dict() if len(data.select_dtypes(include='number').columns) > 0 else {},
+            "conteo_nulos": data.isnull().sum().to_dict()
         }
     
-    def _generate_analysis_prompt(self, data_context: Dict[str, Any], analysis_type: str) -> str:
+    def _generar_prompt_analisis(self, contexto_datos: Dict[str, Any], tipo_analisis: str) -> str:
         """Genera prompt para análisis según tipo"""
-        base_prompt = f"""
+        prompt_base = f"""
         Analiza los siguientes datos y proporciona insights valiosos:
         
-        Forma de los datos: {data_context['shape'][0]} filas, {data_context['shape'][1]} columnas
-        Columnas: {', '.join(data_context['columns'])}
-        Tipos de datos: {data_context['dtypes']}
-        Muestra de datos: {data_context['sample']}
+        Forma de los datos: {contexto_datos['forma'][0]} filas, {contexto_datos['forma'][1]} columnas
+        Columnas: {', '.join(contexto_datos['columnas'])}
+        Tipos de datos: {contexto_datos['tipos_datos']}
+        Muestra de datos: {contexto_datos['muestra']}
         """
         
-        if analysis_type == "statistical":
-            base_prompt += f"\\nEstadísticas: {data_context['stats']}"
+        if tipo_analisis == "estadistico":
+            prompt_base += f"\\nEstadísticas: {contexto_datos['estadisticas']}"
         
-        base_prompt += """
+        prompt_base += """
         
         Proporciona:
         1. Un resumen ejecutivo de los datos
@@ -77,93 +77,93 @@ class AIAnalysisService:
         3. Patrones o tendencias identificados
         4. Recomendaciones basadas en los datos
         
-        Responde en formato JSON con las claves: summary, insights, patterns, recommendations
+        Responde en formato JSON con las claves: resumen, insights, patrones, recomendaciones
         """
         
-        return base_prompt
+        return prompt_base
     
-    def _process_ai_response(self, ai_response: str) -> Dict[str, Any]:
+    def _procesar_respuesta_ia(self, respuesta_ia: str) -> Dict[str, Any]:
         """Procesa respuesta de IA"""
         try:
             # Intentar parsear como JSON
-            if ai_response.strip().startswith('{'):
-                return json.loads(ai_response)
+            if respuesta_ia.strip().startswith('{'):
+                return json.loads(respuesta_ia)
             
             # Si no es JSON, procesar como texto
             return {
-                "summary": ai_response[:500] + "..." if len(ai_response) > 500 else ai_response,
-                "insights": [ai_response],
-                "patterns": [],
-                "recommendations": []
+                "resumen": respuesta_ia[:500] + "..." if len(respuesta_ia) > 500 else respuesta_ia,
+                "insights": [respuesta_ia],
+                "patrones": [],
+                "recomendaciones": []
             }
             
         except json.JSONDecodeError:
             return {
-                "summary": "Análisis completado",
-                "insights": [ai_response],
-                "patterns": [],
-                "recommendations": []
+                "resumen": "Análisis completado",
+                "insights": [respuesta_ia],
+                "patrones": [],
+                "recomendaciones": []
             }
     
-    async def _generate_chart_suggestions(self, data: pd.DataFrame, analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _generar_sugerencias_graficos(self, data: pd.DataFrame, analisis: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Genera sugerencias de gráficos basado en los datos usando IA"""
         try:
             # Preparar contexto de datos para IA
-            data_context = self._prepare_data_context(data)
+            contexto_datos = self._preparar_contexto_datos(data)
             
             # Crear prompt para sugerencias de gráficos
-            prompt = self._create_chart_suggestion_prompt(data_context, data)
+            prompt = self._crear_prompt_sugerencia_graficos(contexto_datos, data)
             
             # Obtener sugerencias de IA
-            ai_response = await self.ai_client.generate_analysis(prompt)
+            respuesta_ia = await self.cliente_ia.generar_analisis(prompt)
             
             # Parsear respuesta JSON
-            suggestions = self._parse_chart_suggestions(ai_response, data)
+            sugerencias = self._parsear_sugerencias_graficos(respuesta_ia, data)
             
-            return suggestions[:5]  # Máximo 5 sugerencias
+            return sugerencias[:5]  # Máximo 5 sugerencias
             
         except Exception as e:
             # Fallback a sugerencias básicas si falla la IA
-            return self._generate_basic_chart_suggestions(data)
+            return self._generar_sugerencias_graficos_basicas(data)
     
-    def _create_chart_suggestion_prompt(self, data_context: Dict[str, Any], data: pd.DataFrame) -> str:
+    def _crear_prompt_sugerencia_graficos(self, contexto_datos: Dict[str, Any], data: pd.DataFrame) -> str:
         """Crea prompt para que la IA sugiera gráficos"""
-        numeric_cols = data.select_dtypes(include=['number']).columns.tolist()
-        categorical_cols = data.select_dtypes(include=['object', 'category']).columns.tolist()
-        datetime_cols = data.select_dtypes(include=['datetime']).columns.tolist()
+        cols_numericas = data.select_dtypes(include=['number']).columns.tolist()
+        cols_categoricas = data.select_dtypes(include=['object', 'category']).columns.tolist()
+        cols_fecha = data.select_dtypes(include=['datetime']).columns.tolist()
         
         prompt = f"""
         Actúa como un analista de datos experto. Analiza la siguiente estructura de datos y sugiere de 3 a 5 visualizaciones específicas que destaquen los patrones o relaciones más interesantes.
 
         INFORMACIÓN DEL DATASET:
-        - Dimensiones: {data_context['shape'][0]} filas, {data_context['shape'][1]} columnas
-        - Columnas numéricas: {', '.join(numeric_cols) if numeric_cols else 'Ninguna'}
-        - Columnas categóricas: {', '.join(categorical_cols) if categorical_cols else 'Ninguna'}
-        - Columnas de fecha/hora: {', '.join(datetime_cols) if datetime_cols else 'Ninguna'}
+        - Dimensiones: {contexto_datos['forma'][0]} filas, {contexto_datos['forma'][1]} columnas
+        - Columnas numéricas: {', '.join(cols_numericas) if cols_numericas else 'Ninguna'}
+        - Columnas categóricas: {', '.join(cols_categoricas) if cols_categoricas else 'Ninguna'}
+        - Columnas de fecha/hora: {', '.join(cols_fecha) if cols_fecha else 'Ninguna'}
         
         ESTADÍSTICAS:
-        {json.dumps(data_context.get('stats', {}), indent=2)}
+        {json.dumps(contexto_datos.get('estadisticas', {}), indent=2)}
         
         MUESTRA DE DATOS:
-        {json.dumps(data_context.get('sample', {}), indent=2)[:500]}
+        {json.dumps(contexto_datos.get('muestra', {}), indent=2)[:500]}
         
         INSTRUCCIONES:
         1. Identifica los patrones, tendencias o relaciones más interesantes en los datos
         2. Sugiere 3-5 visualizaciones específicas que mejor muestren estos insights
         3. Para cada visualización, especifica:
-           - title: Título descriptivo del gráfico
-           - chart_type: Tipo de gráfico (bar, line, pie, scatter, area)
-           - parameters: Objeto con x_axis (nombre de columna para eje X) e y_axis (nombre de columna para eje Y)
+           - titulo: Título descriptivo del gráfico
+           - tipo_grafico: Tipo de gráfico (barras, lineas, pastel, dispersion, area)
+           - parametros: Objeto con eje_x (nombre de columna para eje X) e eje_y (nombre de columna para eje Y)
            - insight: Breve análisis de qué revelará este gráfico (1-2 oraciones)
         
         RESPONDE ÚNICAMENTE CON UN ARRAY JSON en este formato exacto:
         [
           {{
-            "title": "Título del gráfico",
-            "chart_type": "bar",
-            "parameters": {{
-              "x_axis": "nombre_columna_x",
-              "y_axis": "nombre_columna_y"
+            "titulo": "Título del gráfico",
+            "tipo_grafico": "barras",
+            "parametros": {{
+              "eje_x": "nombre_columna_x",
+              "eje_y": "nombre_columna_y"
             }},
             "insight": "Este gráfico revela..."
           }}
@@ -171,110 +171,110 @@ class AIAnalysisService:
         
         IMPORTANTE: 
         - Usa SOLO columnas que existen en el dataset
-        - Elige chart_type apropiado para el tipo de datos
+        - Elige tipo_grafico apropiado para el tipo de datos
         - NO incluyas texto adicional, solo el array JSON
         """
         
         return prompt
     
-    def _parse_chart_suggestions(self, ai_response: str, data: pd.DataFrame) -> List[Dict[str, Any]]:
+    def _parsear_sugerencias_graficos(self, respuesta_ia: str, data: pd.DataFrame) -> List[Dict[str, Any]]:
         """Parsea las sugerencias de gráficos de la respuesta de IA"""
         try:
             # Limpiar respuesta y extraer JSON
-            response_clean = ai_response.strip()
+            respuesta_limpia = respuesta_ia.strip()
             
             # Buscar el array JSON en la respuesta
-            start_idx = response_clean.find('[')
-            end_idx = response_clean.rfind(']') + 1
+            indice_inicio = respuesta_limpia.find('[')
+            indice_fin = respuesta_limpia.rfind(']') + 1
             
-            if start_idx != -1 and end_idx > start_idx:
-                json_str = response_clean[start_idx:end_idx]
-                suggestions = json.loads(json_str)
+            if indice_inicio != -1 and indice_fin > indice_inicio:
+                json_str = respuesta_limpia[indice_inicio:indice_fin]
+                sugerencias = json.loads(json_str)
                 
                 # Validar que las columnas existan
-                valid_suggestions = []
-                for suggestion in suggestions:
-                    if self._validate_chart_suggestion(suggestion, data):
-                        valid_suggestions.append(suggestion)
+                sugerencias_validas = []
+                for sugerencia in sugerencias:
+                    if self._validar_sugerencia_grafico(sugerencia, data):
+                        sugerencias_validas.append(sugerencia)
                 
-                return valid_suggestions if valid_suggestions else self._generate_basic_chart_suggestions(data)
+                return sugerencias_validas if sugerencias_validas else self._generar_sugerencias_graficos_basicas(data)
             else:
-                return self._generate_basic_chart_suggestions(data)
+                return self._generar_sugerencias_graficos_basicas(data)
                 
         except json.JSONDecodeError:
-            return self._generate_basic_chart_suggestions(data)
+            return self._generar_sugerencias_graficos_basicas(data)
     
-    def _validate_chart_suggestion(self, suggestion: Dict[str, Any], data: pd.DataFrame) -> bool:
+    def _validar_sugerencia_grafico(self, sugerencia: Dict[str, Any], data: pd.DataFrame) -> bool:
         """Valida que una sugerencia de gráfico sea válida"""
         try:
-            params = suggestion.get('parameters', {})
-            x_axis = params.get('x_axis')
-            y_axis = params.get('y_axis')
+            params = sugerencia.get('parametros', {})
+            eje_x = params.get('eje_x')
+            eje_y = params.get('eje_y')
             
             # Verificar que las columnas existan
-            if x_axis and x_axis not in data.columns:
+            if eje_x and eje_x not in data.columns:
                 return False
-            if y_axis and y_axis not in data.columns:
+            if eje_y and eje_y not in data.columns:
                 return False
             
             # Verificar que tenga los campos requeridos
-            required_fields = ['title', 'chart_type', 'parameters', 'insight']
-            return all(field in suggestion for field in required_fields)
+            campos_requeridos = ['titulo', 'tipo_grafico', 'parametros', 'insight']
+            return all(campo in sugerencia for campo in campos_requeridos)
             
         except Exception:
             return False
     
-    def _generate_basic_chart_suggestions(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
+    def _generar_sugerencias_graficos_basicas(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
         """Genera sugerencias básicas de gráficos como fallback"""
-        suggestions = []
+        sugerencias = []
         
-        numeric_columns = data.select_dtypes(include=['number']).columns.tolist()
-        categorical_columns = data.select_dtypes(include=['object', 'category']).columns.tolist()
+        columnas_numericas = data.select_dtypes(include=['number']).columns.tolist()
+        columnas_categoricas = data.select_dtypes(include=['object', 'category']).columns.tolist()
         
         # Sugerir gráficos basados en tipos de columnas
-        if len(numeric_columns) >= 2:
-            suggestions.append({
-                "title": f"Relación entre {numeric_columns[0]} y {numeric_columns[1]}",
-                "chart_type": "scatter",
-                "parameters": {
-                    "x_axis": numeric_columns[0],
-                    "y_axis": numeric_columns[1]
+        if len(columnas_numericas) >= 2:
+            sugerencias.append({
+                "titulo": f"Relación entre {columnas_numericas[0]} y {columnas_numericas[1]}",
+                "tipo_grafico": "dispersion",
+                "parametros": {
+                    "eje_x": columnas_numericas[0],
+                    "eje_y": columnas_numericas[1]
                 },
                 "insight": "Este gráfico de dispersión permite visualizar la correlación entre estas dos variables numéricas."
             })
         
-        if len(numeric_columns) >= 1 and len(categorical_columns) >= 1:
-            suggestions.append({
-                "title": f"{numeric_columns[0]} por {categorical_columns[0]}",
-                "chart_type": "bar",
-                "parameters": {
-                    "x_axis": categorical_columns[0],
-                    "y_axis": numeric_columns[0]
+        if len(columnas_numericas) >= 1 and len(columnas_categoricas) >= 1:
+            sugerencias.append({
+                "titulo": f"{columnas_numericas[0]} por {columnas_categoricas[0]}",
+                "tipo_grafico": "barras",
+                "parametros": {
+                    "eje_x": columnas_categoricas[0],
+                    "eje_y": columnas_numericas[0]
                 },
                 "insight": "Este gráfico de barras compara valores numéricos entre diferentes categorías."
             })
         
-        if len(numeric_columns) >= 1:
-            x_col = data.columns[0] if len(data.columns) > 0 else 'index'
-            suggestions.append({
-                "title": f"Tendencia de {numeric_columns[0]}",
-                "chart_type": "line",
-                "parameters": {
-                    "x_axis": x_col,
-                    "y_axis": numeric_columns[0]
+        if len(columnas_numericas) >= 1:
+            col_x = data.columns[0] if len(data.columns) > 0 else 'indice'
+            sugerencias.append({
+                "titulo": f"Tendencia de {columnas_numericas[0]}",
+                "tipo_grafico": "lineas",
+                "parametros": {
+                    "eje_x": col_x,
+                    "eje_y": columnas_numericas[0]
                 },
                 "insight": "Este gráfico de líneas muestra la evolución de los valores a lo largo del conjunto de datos."
             })
         
-        if len(categorical_columns) >= 1 and len(data) < 20:
-            suggestions.append({
-                "title": f"Distribución por {categorical_columns[0]}",
-                "chart_type": "pie",
-                "parameters": {
-                    "x_axis": categorical_columns[0],
-                    "y_axis": "count"
+        if len(columnas_categoricas) >= 1 and len(data) < 20:
+            sugerencias.append({
+                "titulo": f"Distribución por {columnas_categoricas[0]}",
+                "tipo_grafico": "pastel",
+                "parametros": {
+                    "eje_x": columnas_categoricas[0],
+                    "eje_y": "conteo"
                 },
                 "insight": "Este gráfico circular muestra la proporción de cada categoría en el total."
             })
         
-        return suggestions[:3]  # Máximo 3 sugerencias básicas
+        return sugerencias[:3]  # Máximo 3 sugerencias básicas

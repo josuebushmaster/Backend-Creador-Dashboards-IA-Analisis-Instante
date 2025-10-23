@@ -4,24 +4,24 @@ Interfaces para casos de uso
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
-class FileAnalysisInterface(ABC):
+class InterfazAnalisisArchivo(ABC):
     """Interfaz para análisis de archivos"""
     
     @abstractmethod
-    async def process_file(self, filename: str, content: bytes):
+    async def procesar_archivo(self, nombre_archivo: str, contenido: bytes):
         """Procesa archivo subido"""
         pass
     
     @abstractmethod
-    async def analyze_file(self, file_path: str, analysis_type: str, include_charts: bool):
+    async def analizar_archivo(self, ruta_archivo: str, tipo_analisis: str, incluir_graficos: bool):
         """Analiza archivo"""
         pass
 
-class ChartDataInterface(ABC):
+class InterfazDatosGrafico(ABC):
     """Interfaz para datos de gráficos"""
     
     @abstractmethod
-    async def generate_chart_data(self, data: List[Dict[str, Any]], chart_type: str, 
-                                 x_column: str, y_column: str, title: str = None):
+    async def generar_datos_grafico(self, datos: List[Dict[str, Any]], tipo_grafico: str, 
+                                 columna_x: str, columna_y: str, titulo: str = None):
         """Genera datos de gráfico"""
         pass

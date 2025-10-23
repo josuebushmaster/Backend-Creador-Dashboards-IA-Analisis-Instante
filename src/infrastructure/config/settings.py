@@ -6,7 +6,7 @@ from typing import Optional, List
 from pydantic_settings import BaseSettings
 from pydantic import Field
 
-class Settings(BaseSettings):
+class Configuracion(BaseSettings):
     """Configuración de la aplicación"""
     
     # API Keys
@@ -14,37 +14,37 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     
     # Modelos IA
-    groq_model: str = Field(default="llama-3.1-70b-versatile", alias="GROQ_MODEL")
+    groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
     openai_model: str = Field(default="gpt-4-turbo-preview", alias="OPENAI_MODEL")
     
-    # Server Configuration
+    # Configuración del servidor
     host: str = Field(default="0.0.0.0", alias="HOST")
     port: int = Field(default=8000, alias="PORT")
     debug: bool = Field(default=True, alias="DEBUG")
     
-    # Environment
+    # Entorno
     environment: str = Field(default="development", alias="ENVIRONMENT")
     
     # Base de datos
-    database_url: str = "sqlite:///./dashboard_ia.db"
+    url_base_datos: str = "sqlite:///./dashboard_ia.db"
     
     # Archivos
-    upload_dir: str = "uploads"
-    max_file_size: int = 10 * 1024 * 1024  # 10MB
+    directorio_subidas: str = "uploads"
+    tamano_maximo_archivo: int = 10 * 1024 * 1024  # 10MB
     
     # CORS
-    cors_origins: str = Field(
+    origenes_cors: str = Field(
         default="http://localhost:3000,http://localhost:5173,http://localhost:4200",
         alias="CORS_ORIGINS"
     )
     
     @property
-    def allowed_origins(self) -> List[str]:
+    def origenes_permitidos(self) -> List[str]:
         """Convierte CORS_ORIGINS string a lista"""
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        return [origen.strip() for origen in self.origenes_cors.split(",")]
     
     # Logging
-    log_level: str = "INFO"
+    nivel_log: str = "INFO"
     
     class Config:
         env_file = ".env"
@@ -53,11 +53,11 @@ class Settings(BaseSettings):
         extra = "allow"  # Permite campos adicionales sin error
 
 # Instancia global de configuración
-_settings: Optional[Settings] = None
+_configuracion: Optional[Configuracion] = None
 
-def get_settings() -> Settings:
+def obtener_configuracion() -> Configuracion:
     """Obtiene la configuración de la aplicación"""
-    global _settings
-    if _settings is None:
-        _settings = Settings()
-    return _settings
+    global _configuracion
+    if _configuracion is None:
+        _configuracion = Configuracion()
+    return _configuracion

@@ -4,86 +4,86 @@ Caso de uso para análisis de archivos
 from typing import Optional, Dict, Any
 import pandas as pd
 import io
-from src.core.domain.entities import FileData, AnalysisResult
-from src.core.domain.exceptions import FileProcessingError, UnsupportedFileTypeError
-from src.core.services.ai_analysis import AIAnalysisService
+from src.core.domain.entities import DatosArchivo, ResultadoAnalisis
+from src.core.domain.exceptions import ErrorProcesarArchivo, ErrorTipoArchivoNoSoportado
+from src.core.services.ai_analysis import ServicioAnalisisIA
 from src.infrastructure.external.interfaces import AIClientInterface
-from src.infrastructure.persistence.in_memory_storage import InMemoryStorage
+from src.infrastructure.persistence.in_memory_storage import AlmacenamientoMemoria
 
-class FileAnalysisUseCase:
+class CasoUsoAnalisisArchivo:
     """Caso de uso para análisis de archivos con IA"""
     
     def __init__(
         self, 
-        ai_client: AIClientInterface, 
-        openai_client: Optional[AIClientInterface] = None,
-        storage: Optional[InMemoryStorage] = None
+        cliente_ia: AIClientInterface, 
+        cliente_openai: Optional[AIClientInterface] = None,
+        almacenamiento: Optional[AlmacenamientoMemoria] = None
     ):
-        self.ai_analysis_service = AIAnalysisService(ai_client)
-        self.openai_client = openai_client
-        self.storage = storage or InMemoryStorage()
+        self.servicio_analisis_ia = ServicioAnalisisIA(cliente_ia)
+        self.cliente_openai = cliente_openai
+        self.almacenamiento = almacenamiento or AlmacenamientoMemoria()
     
-    async def process_and_store_file(
+    async def procesar_y_almacenar_archivo(
         self, 
-        filename: str, 
-        content: bytes,
+        nombre_archivo: str, 
+        contenido: bytes,
         dataframe: pd.DataFrame
     ) -> Dict[str, Any]:
         """Procesa archivo subido y lo almacena"""
         try:
             # Crear entidad de archivo
-            file_data = FileData.create(
-                filename=filename,
-                content=content,
-                file_type=self._get_file_type(filename)
+            datos_archivo = DatosArchivo.crear(
+                nombre_archivo=nombre_archivo,
+                contenido=contenido,
+                tipo_archivo=self._obtener_tipo_archivo(nombre_archivo)
             )
             
             # Guardar archivo en storage
-            self.storage.save_file(file_data.file_id, file_data)
+            self.almacenamiento.guardar_archivo(datos_archivo.id_archivo, datos_archivo)
             
             # Guardar DataFrame en storage
-            self.storage.save_dataframe(file_data.file_id, dataframe)
+            self.almacenamiento.guardar_dataframe(datos_archivo.id_archivo, dataframe)
             
             return {
-                "file_id": file_data.file_id,
-                "filename": filename,
-                "file_type": file_data.file_type
+                "id_archivo": datos_archivo.id_archivo,
+                "nombre_archivo": nombre_archivo,
+                "tipo_archivo": datos_archivo.tipo_archivo
             }
             
         except Exception as e:
-            raise FileProcessingError(f"Error procesando archivo: {str(e)}")
+            raise ErrorProcesarArchivo(f"Error procesando archivo: {str(e)}")
     
-    async def process_file(self, filename: str, content: bytes):
+    async def procesar_archivo(self, nombre_archivo: str, contenido: bytes):
         """Procesa archivo subido (método legacy para compatibilidad)"""
         try:
             # Crear entidad de archivo
-            file_data = FileData.create(
-                filename=filename,
-                content=content,
-                file_type=self._get_file_type(filename)
+            datos_archivo = DatosArchivo.crear(
+                nombre_archivo=nombre_archivo,
+                contenido=contenido,
+                tipo_archivo=self._obtener_tipo_archivo(nombre_archivo)
             )
             
             # Convertir a DataFrame
-            df = self._content_to_dataframe(content, file_data.file_type)
+            df = self._contenido_a_dataframe(contenido, datos_archivo.tipo_archivo)
             
             # Guardar en storage
-            self.storage.save_file(file_data.file_id, file_data)
-            self.storage.save_dataframe(file_data.file_id, df)
+            self.almacenamiento.guardar_archivo(datos_archivo.id_archivo, datos_archivo)
+            self.almacenamiento.guardar_dataframe(datos_archivo.id_archivo, df)
             
             # Generar preview
-            preview_data = df.head(10).to_dict('records')
+            datos_vista_previa = df.head(10).to_dict('records')
             
             return {
-                "file_id": file_data.file_id,
-                "preview_data": preview_data,
-                "columns": list(df.columns),
-                "shape": df.shape
+                "id_archivo": datos_archivo.id_archivo,
+                "datos_vista_previa": datos_vista_previa,
+                "columnas": list(df.columns),
+                "forma": df.shape
             }
             
         except Exception as e:
-            raise FileProcessingError(f"Error procesando archivo: {str(e)}")
+            raise ErrorProcesarArchivo(f"Error procesando archivo: {str(e)}")
     
-    async def analyze_file_with_ai(self, file_id: str) -> AnalysisResult:
+    async def analizar_archivo_con_ia(self, id_archivo: str) -> ResultadoAnalisis:
         """
         Analiza archivo usando IA.
         
@@ -99,56 +99,56 @@ class FileAnalysisUseCase:
         """
         try:
             # Recuperar DataFrame del storage
-            df = self.storage.get_dataframe(file_id)
+            df = self.almacenamiento.obtener_dataframe(id_archivo)
             
             if df is None:
-                raise ValueError(f"Archivo con ID {file_id} no encontrado")
+                raise ValueError(f"Archivo con ID {id_archivo} no encontrado")
             
             # Realizar análisis con IA
-            analysis_result = await self.ai_analysis_service.analyze_data(df, "general")
+            resultado_analisis = await self.servicio_analisis_ia.analizar_datos(df, "general")
             
-            # Actualizar file_id en el resultado
-            analysis_result.file_id = file_id
+            # Actualizar id_archivo en el resultado
+            resultado_analisis.id_archivo = id_archivo
             
             # Guardar análisis en storage
-            self.storage.save_analysis(analysis_result.analysis_id, analysis_result)
+            self.almacenamiento.guardar_analisis(resultado_analisis.id_analisis, resultado_analisis)
             
-            return analysis_result
+            return resultado_analisis
             
         except ValueError:
             raise
         except Exception as e:
-            raise FileProcessingError(f"Error en análisis: {str(e)}")
+            raise ErrorProcesarArchivo(f"Error en análisis: {str(e)}")
     
-    async def analyze_file(self, file_path: str, analysis_type: str = "general", include_charts: bool = True):
+    async def analizar_archivo(self, ruta_archivo: str, tipo_analisis: str = "general", incluir_graficos: bool = True):
         """Analiza archivo y genera insights (método legacy)"""
         try:
             # Por simplicidad, simularemos cargar el archivo
             # En una implementación real, cargaríamos desde storage
             
             # Simular datos para el ejemplo
-            sample_data = {
+            datos_muestra = {
                 'ventas': [100, 150, 200, 175, 300],
                 'mes': ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'],
                 'region': ['Norte', 'Sur', 'Norte', 'Este', 'Oeste']
             }
-            df = pd.DataFrame(sample_data)
+            df = pd.DataFrame(datos_muestra)
             
             # Realizar análisis con IA
-            analysis_result = await self.ai_analysis_service.analyze_data(df, analysis_type)
+            resultado_analisis = await self.servicio_analisis_ia.analizar_datos(df, tipo_analisis)
             
-            return analysis_result
+            return resultado_analisis
             
         except Exception as e:
-            raise FileProcessingError(f"Error en análisis: {str(e)}")
+            raise ErrorProcesarArchivo(f"Error en análisis: {str(e)}")
     
-    async def get_analysis_result(self, analysis_id: str) -> Optional[AnalysisResult]:
+    async def obtener_resultado_analisis(self, id_analisis: str) -> Optional[ResultadoAnalisis]:
         """Obtiene resultado de análisis por ID"""
-        return self.storage.get_analysis(analysis_id)
+        return self.almacenamiento.obtener_analisis(id_analisis)
     
-    def _get_file_type(self, filename: str) -> str:
+    def _obtener_tipo_archivo(self, nombre_archivo: str) -> str:
         """Obtiene tipo de archivo basado en extensión"""
-        extension = filename.lower().split('.')[-1]
+        extension = nombre_archivo.lower().split('.')[-1]
         
         if extension == 'csv':
             return 'csv'
@@ -157,19 +157,19 @@ class FileAnalysisUseCase:
         elif extension == 'json':
             return 'json'
         else:
-            raise UnsupportedFileTypeError(f"Tipo de archivo no soportado: {extension}")
+            raise ErrorTipoArchivoNoSoportado(f"Tipo de archivo no soportado: {extension}")
     
-    def _content_to_dataframe(self, content: bytes, file_type: str) -> pd.DataFrame:
+    def _contenido_a_dataframe(self, contenido: bytes, tipo_archivo: str) -> pd.DataFrame:
         """Convierte contenido de archivo a DataFrame"""
         try:
-            if file_type == 'csv':
-                return pd.read_csv(io.BytesIO(content))
-            elif file_type == 'excel':
-                return pd.read_excel(io.BytesIO(content))
-            elif file_type == 'json':
-                return pd.read_json(io.BytesIO(content))
+            if tipo_archivo == 'csv':
+                return pd.read_csv(io.BytesIO(contenido))
+            elif tipo_archivo == 'excel':
+                return pd.read_excel(io.BytesIO(contenido))
+            elif tipo_archivo == 'json':
+                return pd.read_json(io.BytesIO(contenido))
             else:
-                raise UnsupportedFileTypeError(f"Tipo de archivo no soportado: {file_type}")
+                raise ErrorTipoArchivoNoSoportado(f"Tipo de archivo no soportado: {tipo_archivo}")
                 
         except Exception as e:
-            raise FileProcessingError(f"Error leyendo archivo: {str(e)}")
+            raise ErrorProcesarArchivo(f"Error leyendo archivo: {str(e)}")

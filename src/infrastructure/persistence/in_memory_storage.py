@@ -1,73 +1,150 @@
 """
-Almacenamiento en memoria para desarrollo
+Almacenamiento híbrido: memoria + disco para persistencia
 """
 from typing import Dict, Any, Optional
 import uuid
 import pandas as pd
-from src.core.domain.entities import FileData, AnalysisResult, ChartData
+from pathlib import Path
+import pickle
+from src.core.domain.entities import DatosArchivo, ResultadoAnalisis, DatosGrafico
 
-class InMemoryStorage:
-    """Implementación de almacenamiento en memoria"""
+class AlmacenamientoMemoria:
+    """Implementación de almacenamiento híbrido (memoria + disco)"""
     
-    def __init__(self):
-        self._files: Dict[str, FileData] = {}
+    def __init__(self, usar_cache_disco: bool = True):
+        self._archivos: Dict[str, DatosArchivo] = {}
         self._dataframes: Dict[str, pd.DataFrame] = {}
-        self._analyses: Dict[str, AnalysisResult] = {}
-        self._charts: Dict[str, ChartData] = {}
+        self._analisis: Dict[str, ResultadoAnalisis] = {}
+        self._graficos: Dict[str, DatosGrafico] = {}
+        
+        # Configuración de cache en disco
+        self.usar_cache_disco = usar_cache_disco
+        self.directorio_cache = Path("cache_datos")
+        
+        if self.usar_cache_disco:
+            # Crear directorio de cache si no existe
+            self.directorio_cache.mkdir(exist_ok=True)
+            (self.directorio_cache / "dataframes").mkdir(exist_ok=True)
+            (self.directorio_cache / "archivos").mkdir(exist_ok=True)
     
-    def save_file(self, file_id: str, file_data: FileData) -> str:
+    def guardar_archivo(self, id_archivo: str, datos_archivo: DatosArchivo) -> str:
         """Guarda archivo en memoria"""
-        self._files[file_id] = file_data
-        return file_id
+        self._archivos[id_archivo] = datos_archivo
+        return id_archivo
     
-    def get_file(self, file_id: str) -> Optional[FileData]:
+    def obtener_archivo(self, id_archivo: str) -> Optional[DatosArchivo]:
         """Obtiene archivo de memoria"""
-        return self._files.get(file_id)
+        return self._archivos.get(id_archivo)
     
-    def save_dataframe(self, file_id: str, dataframe: pd.DataFrame) -> None:
-        """Guarda DataFrame asociado a un archivo"""
-        self._dataframes[file_id] = dataframe
+    def guardar_dataframe(self, id_archivo: str, dataframe: pd.DataFrame) -> None:
+        """Guarda DataFrame en memoria y opcionalmente en disco"""
+        # Guardar en memoria
+        self._dataframes[id_archivo] = dataframe
+        
+        # Guardar en disco como cache (formato Parquet - más eficiente)
+        if self.usar_cache_disco:
+            ruta_cache = self.directorio_cache / "dataframes" / f"{id_archivo}.parquet"
+            try:
+                dataframe.to_parquet(ruta_cache, index=False)
+            except Exception as e:
+                print(f"[!] No se pudo guardar DataFrame en cache: {e}")
     
-    def get_dataframe(self, file_id: str) -> Optional[pd.DataFrame]:
-        """Obtiene DataFrame de un archivo"""
-        return self._dataframes.get(file_id)
+    def obtener_dataframe(self, id_archivo: str) -> Optional[pd.DataFrame]:
+        """Obtiene DataFrame de memoria o disco"""
+        # Intentar desde memoria primero
+        if id_archivo in self._dataframes:
+            return self._dataframes[id_archivo]
+        
+        # Si no está en memoria, intentar cargar desde disco
+        if self.usar_cache_disco:
+            ruta_cache = self.directorio_cache / "dataframes" / f"{id_archivo}.parquet"
+            if ruta_cache.exists():
+                try:
+                    df = pd.read_parquet(ruta_cache)
+                    # Guardar en memoria para próxima vez
+                    self._dataframes[id_archivo] = df
+                    return df
+                except Exception as e:
+                    print(f"[!] Error al cargar DataFrame desde cache: {e}")
+        
+        return None
     
-    def save_analysis(self, analysis_id: str, analysis: AnalysisResult) -> None:
+    def guardar_analisis(self, id_analisis: str, analisis: ResultadoAnalisis) -> None:
         """Guarda resultado de análisis"""
-        self._analyses[analysis_id] = analysis
+        self._analisis[id_analisis] = analisis
     
-    def get_analysis(self, analysis_id: str) -> Optional[AnalysisResult]:
+    def obtener_analisis(self, id_analisis: str) -> Optional[ResultadoAnalisis]:
         """Obtiene resultado de análisis"""
-        return self._analyses.get(analysis_id)
+        return self._analisis.get(id_analisis)
     
-    def save_chart(self, chart_id: str, chart_data: ChartData) -> None:
+    def guardar_grafico(self, id_grafico: str, datos_grafico: DatosGrafico) -> None:
         """Guarda datos de gráfico"""
-        self._charts[chart_id] = chart_data
+        self._graficos[id_grafico] = datos_grafico
     
-    def get_chart(self, chart_id: str) -> Optional[ChartData]:
+    def obtener_grafico(self, id_grafico: str) -> Optional[DatosGrafico]:
         """Obtiene datos de gráfico"""
-        return self._charts.get(chart_id)
+        return self._graficos.get(id_grafico)
     
-    def delete_file(self, file_id: str) -> bool:
-        """Elimina archivo y datos asociados de memoria"""
-        deleted = False
+    def eliminar_archivo(self, id_archivo: str) -> bool:
+        """Elimina archivo y datos asociados de memoria y disco"""
+        eliminado = False
         
-        if file_id in self._files:
-            del self._files[file_id]
-            deleted = True
+        if id_archivo in self._archivos:
+            del self._archivos[id_archivo]
+            eliminado = True
         
-        if file_id in self._dataframes:
-            del self._dataframes[file_id]
+        if id_archivo in self._dataframes:
+            del self._dataframes[id_archivo]
         
-        return deleted
+        # Eliminar cache del disco
+        if self.usar_cache_disco:
+            ruta_cache = self.directorio_cache / "dataframes" / f"{id_archivo}.parquet"
+            if ruta_cache.exists():
+                try:
+                    ruta_cache.unlink()
+                except Exception as e:
+                    print(f"[!] Error al eliminar cache: {e}")
+        
+        return eliminado
     
-    def list_files(self) -> list:
+    def listar_archivos(self) -> list:
         """Lista todos los archivos almacenados"""
-        return list(self._files.keys())
+        return list(self._archivos.keys())
     
-    def clear_all(self) -> None:
-        """Limpia todo el almacenamiento"""
-        self._files.clear()
+    def limpiar_todo(self) -> None:
+        """Limpia todo el almacenamiento (memoria y disco)"""
+        self._archivos.clear()
         self._dataframes.clear()
-        self._analyses.clear()
-        self._charts.clear()
+        self._analisis.clear()
+        self._graficos.clear()
+        
+        # Limpiar cache del disco
+        if self.usar_cache_disco:
+            try:
+                import shutil
+                if self.directorio_cache.exists():
+                    shutil.rmtree(self.directorio_cache)
+                    self.directorio_cache.mkdir(exist_ok=True)
+                    (self.directorio_cache / "dataframes").mkdir(exist_ok=True)
+                    (self.directorio_cache / "archivos").mkdir(exist_ok=True)
+            except Exception as e:
+                print(f"⚠️  Error al limpiar cache del disco: {e}")
+    
+    def obtener_estadisticas_cache(self) -> Dict[str, Any]:
+        """Obtiene estadísticas del cache"""
+        stats = {
+            "archivos_memoria": len(self._archivos),
+            "dataframes_memoria": len(self._dataframes),
+            "analisis_memoria": len(self._analisis),
+            "graficos_memoria": len(self._graficos)
+        }
+        
+        if self.usar_cache_disco and self.directorio_cache.exists():
+            dir_df = self.directorio_cache / "dataframes"
+            stats["dataframes_disco"] = len(list(dir_df.glob("*.parquet"))) if dir_df.exists() else 0
+            
+            # Calcular tamaño total del cache
+            tamano_total = sum(f.stat().st_size for f in dir_df.glob("*.parquet")) if dir_df.exists() else 0
+            stats["tamano_cache_mb"] = round(tamano_total / (1024 * 1024), 2)
+        
+        return stats

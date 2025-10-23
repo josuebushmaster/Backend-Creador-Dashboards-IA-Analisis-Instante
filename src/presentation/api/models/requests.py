@@ -5,52 +5,52 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from enum import Enum
 
-class ChartType(str, Enum):
+class TipoGrafico(str, Enum):
     """Tipos de gráficos disponibles"""
-    BAR = "bar"
-    LINE = "line"
-    PIE = "pie"
-    SCATTER = "scatter"
+    BARRAS = "barras"
+    LINEAS = "lineas"
+    PASTEL = "pastel"
+    DISPERSION = "dispersion"
     AREA = "area"
 
-class FileUploadRequest(BaseModel):
+class SolicitudSubirArchivo(BaseModel):
     """Request para subir archivo"""
-    filename: str
-    content: str  # Base64 encoded content
-    file_type: str
+    nombre_archivo: str
+    contenido: str  # Base64 encoded content
+    tipo_archivo: str
 
-class AnalysisRequest(BaseModel):
+class SolicitudAnalisis(BaseModel):
     """Request para análisis de archivo"""
-    file_path: str
-    analysis_type: str = "general"
-    include_charts: bool = True
+    ruta_archivo: str
+    tipo_analisis: str = "general"
+    incluir_graficos: bool = True
 
-class ChartDataRequest(BaseModel):
+class SolicitudDatosGrafico(BaseModel):
     """Request para generar datos de gráfico"""
-    data: List[Dict[str, Any]]
-    chart_type: ChartType
-    x_column: str
-    y_column: str
-    title: Optional[str] = None
+    datos: List[Dict[str, Any]]
+    tipo_grafico: TipoGrafico
+    columna_x: str
+    columna_y: str
+    titulo: Optional[str] = None
     
-class AnalysisResponse(BaseModel):
+class RespuestaAnalisis(BaseModel):
     """Response del análisis"""
-    analysis_id: str
-    summary: str
+    id_analisis: str
+    resumen: str
     insights: List[str]
-    chart_suggestions: List[Dict[str, Any]]
-    status: str
+    sugerencias_graficos: List[Dict[str, Any]]
+    estado: str
 
-class ChartDataResponse(BaseModel):
+class RespuestaDatosGrafico(BaseModel):
     """Response con datos del gráfico"""
-    chart_id: str
-    chart_type: str
-    data: List[Dict[str, Any]]
-    config: Dict[str, Any]
-    metadata: Dict[str, Any]
+    id_grafico: str
+    tipo_grafico: str
+    datos: List[Dict[str, Any]]
+    configuracion: Dict[str, Any]
+    metadatos: Dict[str, Any]
 
-class ErrorResponse(BaseModel):
+class RespuestaError(BaseModel):
     """Response de error"""
     error: str
-    detail: str
-    status_code: int
+    detalle: str
+    codigo_estado: int

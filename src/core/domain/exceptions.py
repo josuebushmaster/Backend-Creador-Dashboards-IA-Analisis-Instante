@@ -2,30 +2,30 @@
 Excepciones del dominio
 """
 
-class DomainException(Exception):
+class ExcepcionDominio(Exception):
     """Excepción base del dominio"""
     pass
 
-class FileProcessingError(DomainException):
+class ErrorProcesarArchivo(ExcepcionDominio):
     """Error al procesar archivo"""
     pass
 
-class AnalysisError(DomainException):
+class ErrorAnalisis(ExcepcionDominio):
     """Error durante el análisis"""
     pass
 
-class ChartGenerationError(DomainException):
+class ErrorGeneracionGrafico(ExcepcionDominio):
     """Error al generar gráfico"""
     pass
 
-class UnsupportedFileTypeError(FileProcessingError):
+class ErrorTipoArchivoNoSoportado(ErrorProcesarArchivo):
     """Tipo de archivo no soportado"""
     pass
 
-class InvalidDataError(DomainException):
+class ErrorDatosInvalidos(ExcepcionDominio):
     """Datos inválidos"""
     pass
 
-class AIServiceError(DomainException):
+class ErrorServicioIA(ExcepcionDominio):
     """Error en servicio de IA"""
     pass

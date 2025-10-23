@@ -5,79 +5,79 @@ from dataclasses import dataclass
 from typing import List, Any
 from enum import Enum
 
-class FileType(Enum):
+class TipoArchivo(Enum):
     """Tipos de archivo soportados"""
     CSV = "csv"
     EXCEL = "xlsx"
     JSON = "json"
 
-class ChartType(Enum):
+class TipoGrafico(Enum):
     """Tipos de gráficos"""
-    BAR = "bar"
-    LINE = "line"
-    PIE = "pie"
-    SCATTER = "scatter"
+    BARRAS = "bar"
+    LINEAS = "line"
+    PASTEL = "pie"
+    DISPERSION = "scatter"
     AREA = "area"
 
-class AnalysisType(Enum):
+class TipoAnalisis(Enum):
     """Tipos de análisis"""
     GENERAL = "general"
-    STATISTICAL = "statistical"
-    PREDICTIVE = "predictive"
+    ESTADISTICO = "statistical"
+    PREDICTIVO = "predictive"
 
 @dataclass(frozen=True)
-class FileMetadata:
+class MetadatosArchivo:
     """Metadatos de archivo"""
-    filename: str
-    size: int
-    file_type: FileType
+    nombre_archivo: str
+    tamano: int
+    tipo_archivo: TipoArchivo
     
     def __post_init__(self):
-        if self.size <= 0:
+        if self.tamano <= 0:
             raise ValueError("El tamaño del archivo debe ser mayor a 0")
-        if not self.filename:
+        if not self.nombre_archivo:
             raise ValueError("El nombre del archivo no puede estar vacío")
 
 @dataclass(frozen=True)
-class ChartConfig:
+class ConfiguracionGrafico:
     """Configuración de gráfico"""
-    title: str
-    x_label: str
-    y_label: str
-    color_scheme: str = "default"
+    titulo: str
+    etiqueta_x: str
+    etiqueta_y: str
+    esquema_color: str = "default"
     
     def __post_init__(self):
-        if not self.title:
+        if not self.titulo:
             raise ValueError("El título del gráfico es requerido")
-        if not self.x_label or not self.y_label:
+        if not self.etiqueta_x or not self.etiqueta_y:
             raise ValueError("Las etiquetas de los ejes son requeridas")
 
 @dataclass(frozen=True)
-class ChartParameters:
+class ParametrosGrafico:
     """Parámetros para generación de gráficos"""
-    x_axis: str
-    y_axis: str
-    aggregation: str = "sum"
+    eje_x: str
+    eje_y: str
+    agregacion: str = "sum"
     
     def __post_init__(self):
-        if not self.x_axis or not self.y_axis:
+        if not self.eje_x or not self.eje_y:
             raise ValueError("Los ejes X e Y son requeridos")
         
-        valid_aggregations = ["sum", "count", "avg", "max", "min"]
-        if self.aggregation not in valid_aggregations:
-            raise ValueError(f"Agregación debe ser una de: {valid_aggregations}")
+        agregaciones_validas = ["sum", "count", "avg", "max", "min"]
+        if self.agregacion not in agregaciones_validas:
+            raise ValueError(f"Agregación debe ser una de: {agregaciones_validas}")
 
 @dataclass(frozen=True)
-class AnalysisRequest:
-    """Request para análisis de datos"""
-    file_id: str
-    analysis_type: str = "general"
-    include_charts: bool = True
+class SolicitudAnalisis:
+    """Solicitud para análisis de datos"""
+    id_archivo: str
+    tipo_analisis: str = "general"
+    incluir_graficos: bool = True
     
     def __post_init__(self):
-        if not self.file_id:
+        if not self.id_archivo:
             raise ValueError("El ID del archivo es requerido")
         
-        valid_types = ["general", "statistical", "predictive"]
-        if self.analysis_type not in valid_types:
-            raise ValueError(f"Tipo de análisis debe ser uno de: {valid_types}")
+        tipos_validos = ["general", "statistical", "predictive"]
+        if self.tipo_analisis not in tipos_validos:
+            raise ValueError(f"Tipo de análisis debe ser uno de: {tipos_validos}")

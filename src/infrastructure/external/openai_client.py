@@ -5,23 +5,23 @@ import asyncio
 from typing import List, Dict, Any
 from openai import AsyncOpenAI
 from src.infrastructure.external.interfaces import AIClientInterface
-from src.infrastructure.config.settings import get_settings
+from src.infrastructure.config.settings import obtener_configuracion
 
-class OpenAIClient(AIClientInterface):
+class ClienteOpenAI(AIClientInterface):
     """Cliente para interactuar con OpenAI"""
     
     def __init__(self):
-        settings = get_settings()
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
-        self.model = settings.openai_model or "gpt-3.5-turbo"
+        configuracion = obtener_configuracion()
+        self.cliente = AsyncOpenAI(api_key=configuracion.openai_api_key)
+        self.modelo = configuracion.openai_model
     
-    async def generate_analysis(self, prompt: str) -> str:
+    async def generar_analisis(self, prompt: str) -> str:
         """
         Genera análisis usando OpenAI
         """
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
+            respuesta = await self.cliente.chat.completions.create(
+                model=self.modelo,
                 messages=[
                     {
                         "role": "system",
@@ -36,43 +36,43 @@ class OpenAIClient(AIClientInterface):
                 max_tokens=2000
             )
             
-            return response.choices[0].message.content
+            return respuesta.choices[0].message.content
             
         except Exception as e:
             raise Exception(f"Error en OpenAI API: {str(e)}")
     
-    async def generate_chart_suggestions(self, data_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def generar_sugerencias_grafico(self, contexto_datos: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Genera sugerencias de gráficos usando OpenAI
         """
         prompt = f"""
         Basándote en los siguientes datos, sugiere 3 tipos de gráficos más apropiados:
         
-        Columnas: {data_context.get('columns', [])}
-        Tipos de datos: {data_context.get('dtypes', {})}
-        Forma: {data_context.get('shape', (0, 0))}
+        Columnas: {contexto_datos.get('columnas', [])}
+        Tipos de datos: {contexto_datos.get('tipos_datos', {})}
+        Forma: {contexto_datos.get('forma', (0, 0))}
         
         Para cada gráfico, especifica:
-        - type: tipo de gráfico (bar, line, pie, scatter, area)
-        - title: título sugerido
-        - x_column: columna para eje X
-        - y_column: columna para eje Y
-        - description: breve descripción del insight
+        - tipo: tipo de gráfico (barras, lineas, pastel, dispersion, area)
+        - titulo: título sugerido
+        - columna_x: columna para eje X
+        - columna_y: columna para eje Y
+        - descripcion: breve descripción del insight
         
         Responde en formato JSON como array de objetos.
         """
         
         try:
-            response = await self.generate_analysis(prompt)
+            respuesta = await self.generar_analisis(prompt)
             # Procesar respuesta y convertir a lista de diccionarios
             # Por simplicidad, retornamos una respuesta predeterminada
             return [
                 {
-                    "type": "line",
-                    "title": "Tendencia Temporal",
-                    "x_column": data_context.get('columns', [''])[0],
-                    "y_column": data_context.get('columns', ['', ''])[-1],
-                    "description": "Análisis de tendencias en el tiempo"
+                    "tipo": "lineas",
+                    "titulo": "Tendencia Temporal",
+                    "columna_x": contexto_datos.get('columnas', [''])[0],
+                    "columna_y": contexto_datos.get('columnas', ['', ''])[-1],
+                    "descripcion": "Análisis de tendencias en el tiempo"
                 }
             ]
             
