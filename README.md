@@ -275,3 +275,5 @@ Explicación por carpeta/archivo
     - `persistence/in_memory_storage.py`: implementación simple de almacenamiento para pruebas y prototipos.
 
 - `.vscode/tasks.json`: tareas predefinidas para VS Code (iniciar servidor, tests, limpiar pycache).
+- creado por Josue Pastil, desarrollador full stack
+- www.linkedin.com/in/josué-pastil-b98753196
