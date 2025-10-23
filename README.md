@@ -98,13 +98,70 @@ Rutas principales: revisa `src/presentation/api/routes/` para ver endpoints como
 
 Explora ahí los endpoints disponibles (por ejemplo, los definidos en `src/presentation/api/routes/analysis.py`, `charts.py` y `sistema.py`).
 
-## Decisiones técnicas
+## Decisiones técnicas (detalladas)
 
-- FastAPI como framework web: rápido, tipado y con documentación automática.
-- Arquitectura por capas: `core` (dominio/servicios/casos de uso), `infrastructure` (adaptadores, configuración, almacenamiento en memoria) y `presentation` (FastAPI). Esto ayuda a aislar reglas de negocio de la capa web y facilita pruebas.
-- Clientes de IA desacoplados: en `src/infrastructure/external/` hay clientes para Groq y OpenAI; se pueden alternar vía configuración/DI sin tocar el dominio.
-- Persistencia en memoria para empezar: `in_memory_storage.py` sirve para prototipos y tests; es fácil reemplazarlo por una base de datos real si hace falta.
-- Scripts de soporte: se incluyen utilidades para limpiar cachés de Python y varios scripts de prueba en `scripts/` y `debug/` para validar funcionalidades.
+Abajo detallo las decisiones técnicas que tomé, por qué las escogí, dónde están implementadas y recomendaciones/próximos pasos.
+
+1) Framework web: FastAPI
+ - Por qué: rendimiento, tipado (type hints), documentación automática (Swagger / ReDoc) y buena ergonomía para APIs modernas.
+ - Dónde: `src/presentation/fastapi_app.py`, rutas en `src/presentation/api/routes/`.
+ - Trade-offs: más adecuado para APIs que para páginas server-side complejas. Si el proyecto requiere features típicas de un CMS/admin, considerar Django.
+ - Recomendación: documentar ejemplos de request/response en los modelos Pydantic.
+
+2) Validación y modelos: Pydantic
+ - Por qué: validación declarativa, parsing y generación automática de esquemas OpenAPI.
+ - Dónde: `src/presentation/api/models/requests.py` y usos en los routers.
+ - Recomendación: mantener los modelos pequeños y composables; añadir ejemplos con `schema_extra` si hace falta.
+
+3) Arquitectura por capas / separación de responsabilidades
+ - Por qué: aislar lógica de negocio (core) de detalles de infraestructura y presentación para facilitar tests y cambios futuros.
+ - Capas:
+   - Presentation: `src/presentation/` (FastAPI, modelos, routers, middleware).
+   - Core/Domain: `src/core/` (entidades, value objects, servicios/casos de uso).
+   - Infrastructure: `src/infrastructure/` (container, config, adaptadores externos, persistencia).
+ - Recomendación: mantener el core libre de imports de FastAPI o librerías de infra.
+
+4) Inyección de dependencias / Container
+ - Por qué: centralizar creación de clientes/adapters, facilitar mocks en tests y cambiar implementaciones sin tocar la lógica.
+ - Dónde: `src/infrastructure/container.py` y `src/presentation/api/dependencies.py`.
+ - Recomendación: exponer factories simples y evitar singletons globales complejos.
+
+5) Adaptadores para LLMs y contratos
+ - Por qué: desacoplar proveedores (Groq, OpenAI) mediante contratos para poder cambiar proveedor o mockearlo en tests.
+ - Dónde: `src/infrastructure/external/interfaces.py`, `groq_client.py`, `openai_client.py`.
+ - Recomendación: implementar timeouts, retries y manejo de errores en los adaptadores; no propagar excepciones crudas al cliente HTTP.
+
+6) Persistencia: in-memory storage (temporal)
+ - Por qué: arranque rápido y facilidad para tests locales sin infra adicional.
+ - Dónde: `src/infrastructure/persistence/in_memory_storage.py`.
+ - Trade-offs: no persistente ni distribuible; planificar migración a una BD (Postgres, SQLite, Redis) si se requiere durabilidad/escala.
+
+7) Configuración y seguridad de entorno
+ - Por qué: evitar subir secretos y centralizar configuración.
+ - Dónde: `.env.example` (plantilla) y `src/infrastructure/config/settings.py` (carga/validación).
+ - Recomendación: para producción usar secret manager (Vault, AWS Secrets Manager) y no confiar en `.env` con claves sensibles.
+
+8) Documentación de la API
+ - Por qué: facilita coordinación con frontend y pruebas manuales.
+ - Dónde: FastAPI expone `/docs` (Swagger) y `/redoc` (ReDoc) automáticamente.
+ - Recomendación: añadir ejemplos y modelos de respuesta en los schemas Pydantic.
+
+9) Tests y estrategia
+ - Por qué: permitir cambios seguros y regresiones controladas.
+ - Recomendación: usar `pytest`, mocks para adaptadores externos y `TestClient` de FastAPI para tests de integración. Mantener `in_memory_storage` para tests unitarios y añadir tests que cubran fallos de adaptadores externos.
+
+10) Dev tooling y tareas
+ - Inclusiones: `scripts/clean_pycache.*` y `.vscode/tasks.json` para acelerar tareas de desarrollo.
+ - Recomendación: añadir CI (GitHub Actions) para ejecutar lint + tests en PRs.
+
+11) Logs, timeouts y robustez
+ - Recomendación crítica: implementar timeouts en llamadas externas (por ejemplo `httpx` con timeout), retries (tenacity) y límites de concurrencia si el LLM es punto caliente.
+
+12) Manejo de errores
+ - Dónde: `src/core/domain/exceptions.py` para excepciones de dominio; traducirlas a respuestas HTTP en routers o middleware.
+ - Recomendación: centralizar handlers para mapear excepciones a códigos HTTP claros y mensajes seguros.
+
+Si quieres, inserto una versión resumida de estas decisiones en la parte superior del README para que sea visible en la vista rápida. También puedo generar un snippet de ejemplo (router + servicio + test) que implemente estas prácticas.
 
 ## Notas
 
