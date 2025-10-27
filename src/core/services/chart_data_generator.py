@@ -35,9 +35,12 @@ class GeneradorDatosGrafico:
             if eje_y not in dataframe.columns and eje_y != "conteo":
                 raise ErrorGeneracionGrafico(f"Columna {eje_y} no encontrada en los datos")
             
+            # Crear copia del dataframe para no modificar el original
+            df_trabajo = dataframe.copy()
+            
             # Procesar datos según tipo de gráfico y agregación
             datos_procesados = self._procesar_datos_por_tipo_grafico(
-                dataframe, 
+                df_trabajo, 
                 tipo_grafico, 
                 eje_x, 
                 eje_y,
@@ -143,6 +146,18 @@ class GeneradorDatosGrafico:
         if columna_y == "conteo":
             return df.groupby(columna_x).size().reset_index(name='conteo')
         
+        # Validar que la columna Y sea numérica (excepto para conteo)
+        if agregacion != "conteo":
+            # Intentar convertir a numérico, si falla usar conteo
+            try:
+                df[columna_y] = pd.to_numeric(df[columna_y], errors='coerce')
+            except Exception:
+                pass
+            
+            # Si la columna no es numérica o tiene muchos valores no numéricos, usar conteo
+            if df[columna_y].dtype == 'object' or df[columna_y].isna().sum() > len(df) * 0.5:
+                return df.groupby(columna_x).size().reset_index(name='conteo')
+        
         if agregacion == "suma":
             return df.groupby(columna_x)[columna_y].sum().reset_index()
         elif agregacion == "promedio" or agregacion == "media":
@@ -165,9 +180,18 @@ class GeneradorDatosGrafico:
     ) -> List[Dict[str, Any]]:
         """Procesa datos para gráfico de barras con agregación"""
         agrupado = self._agregar_datos(df, columna_x, columna_y, agregacion)
+        
         # Limitar a top 20 para evitar sobrecarga visual
         if len(agrupado) > 20:
-            agrupado = agrupado.nlargest(20, agrupado.columns[-1])
+            columna_valor = agrupado.columns[-1]
+            # Asegurar que la columna es numérica antes de usar nlargest
+            try:
+                agrupado[columna_valor] = pd.to_numeric(agrupado[columna_valor], errors='coerce').fillna(0)
+                agrupado = agrupado.nlargest(20, columna_valor)
+            except Exception:
+                # Si falla, tomar las primeras 20
+                agrupado = agrupado.head(20)
+        
         return agrupado.to_dict('records')
     
     def _procesar_grafico_lineas(
@@ -196,8 +220,21 @@ class GeneradorDatosGrafico:
         if len(agrupado) > 10:
             agrupado = agrupado.nlargest(10, agrupado.columns[-1])
         
-        total = agrupado[agrupado.columns[-1]].sum()
-        agrupado['porcentaje'] = (agrupado[agrupado.columns[-1]] / total * 100).round(2)
+        # Calcular total y porcentajes (asegurar tipo numérico)
+        columna_valor = agrupado.columns[-1]
+        try:
+            # Convertir a numérico si no lo es
+            agrupado[columna_valor] = pd.to_numeric(agrupado[columna_valor], errors='coerce').fillna(0)
+            total = agrupado[columna_valor].sum()
+            
+            if total > 0:
+                agrupado['porcentaje'] = (agrupado[columna_valor] / total * 100).round(2)
+            else:
+                agrupado['porcentaje'] = 0
+        except Exception as e:
+            # Si falla el cálculo de porcentaje, usar valores absolutos
+            agrupado['porcentaje'] = 0
+        
         return agrupado.to_dict('records')
     
     def _procesar_grafico_dispersion(

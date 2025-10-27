@@ -4,9 +4,11 @@ Rutas para generación de gráficos
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
+import traceback
 from src.core.use_cases.chart_data import CasoUsoDatosGrafico
 from src.core.services.chart_data_generator import GeneradorDatosGrafico
 from src.presentation.api.dependencies import almacenamiento_compartido
+from src.presentation.api.utils import sanitize_for_json
 
 router = APIRouter()
 
@@ -88,7 +90,7 @@ async def _procesar_solicitud_grafico(
             agregacion=agregacion
         )
         
-        return {
+        respuesta = {
             "id_grafico": resultado.id_grafico,
             "tipo_grafico": resultado.tipo_grafico,
             "titulo": titulo or f"{eje_y} por {eje_x}",
@@ -96,8 +98,17 @@ async def _procesar_solicitud_grafico(
             "configuracion": resultado.configuracion,
             "metadatos": resultado.metadatos
         }
+
+        # Sanitizar respuesta para evitar NaN/Inf en la serialización JSON
+        return sanitize_for_json(respuesta)
         
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        # Imprimir traceback completo para debugging
+        print("\n" + "="*80)
+        print("ERROR EN ENDPOINT /chart-data:")
+        print("="*80)
+        traceback.print_exc()
+        print("="*80 + "\n")
         raise HTTPException(status_code=500, detail=f"Error generando datos del gráfico: {str(e)}")

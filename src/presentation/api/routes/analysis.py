@@ -8,6 +8,7 @@ import io
 import traceback
 from src.core.use_cases.file_analysis import CasoUsoAnalisisArchivo
 from src.presentation.api.dependencies import almacenamiento_compartido
+from src.presentation.api.utils import sanitize_for_json
 
 router = APIRouter()
 
@@ -115,9 +116,11 @@ async def subir_y_analizar_archivo(file: UploadFile = File(...)):
                 "sugerencias_graficos": resultado_analisis.sugerencias_graficos
             }
         }
-        
+
+        # Sanitizar la respuesta (convertir NaN/Inf y tipos numpy/pandas)
+        respuesta = sanitize_for_json(respuesta)
         return respuesta
-        
+
     except HTTPException:
         raise
     except Exception as e:
